@@ -1,0 +1,178 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="welcome">
+        <img src="" alt="">
+        <h1>Welcome to <span>We Chat Zone</span></h1>
+        <h4>Where all the fun begins</h4>
+        <div>
+            <button id="new-user">New User</button>
+            <button id="login-btn">Login</button>
+        </div>
+    </div>
+    <div id="register" style="display: none;">
+        <div>
+            <h1>Welcome, please fill the form below</h1>
+            <div id="form">
+                <input id="name-input" type="text" placeholder="Name" required>
+                <input id="username-input" type="text" placeholder="Username" required> 
+            </div>
+            <button id="register-btn">Register</button>
+        </div>
+    </div>
+    <div id="login-page" style="display: none;">
+        <h1>Select your username to continue chatting</h1>
+        <ol id="user-list"></ol>
+    </div>
+    <div id="main-chat" style="display: none;">
+        <img src="" alt="">
+        <ol id="chats"></ol>
+        <div class="chat-input-bar">
+            <textarea name="text" id="chat-input" placeholder="Type message here"></textarea>
+            <button id="send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const welcomeScreen = document.getElementById("welcome")
+        const registerScreen = document.getElementById("register")
+        const loginScreen = document.getElementById("login-page")
+        const mainScreen = document.getElementById("main-chat")
+        const allScreens = [welcomeScreen, registerScreen, loginScreen, mainScreen]
+
+        const newUserBtn = document.getElementById("new-user")
+        const loginBtn = document.getElementById("login-btn")
+        const registerBtn = document.getElementById("register-btn")
+        const sendBtn = document.getElementById("send")
+
+        let currentUser = null
+
+        function showScreen(screen) {
+            allScreens.forEach((sc) => {
+                sc.style.display = "none"
+            })
+            screen.style.display = "block"
+        }
+
+        function renderUsers() {
+            let savedUsers = JSON.parse(localStorage.getItem("users")) || []
+            let userList = document.getElementById("user-list")
+            userList.innerHTML = ''
+            if(savedUsers && savedUsers.length > 0) {
+                savedUsers.forEach((user) => {
+                    userList.innerHTML += `<li data-id="${user.id}">
+                        <span>${user.avater}</span>
+                        <span>${user.username}</span>
+                    </li>`
+                })
+            }
+        }
+
+        function registerUsers() {
+            let savedUsers = JSON.parse(localStorage.getItem("users")) || []
+            let name = document.getElementById("name-input")
+            let username = document.getElementById("username-input")
+            let initials = name.value.split(" ")
+            let avater = initials[0][0] + (initials[1] ? initials[1][0] : "")
+            savedUsers.push({
+                id: savedUsers.length + 1,
+                name: name.value,
+                username: username.value,
+                avater: avater.toUpperCase()
+            })
+            localStorage.setItem("users", JSON.stringify(savedUsers))
+            renderUsers()
+            showScreen(loginScreen)
+        }
+
+        function renderMessages() {
+            let savedMessages = JSON.parse(localStorage.getItem("messages")) || []
+            let chats = document.getElementById("chats")
+            chats.innerHTML = ''
+            savedMessages.forEach((msg) => {
+                let isOwn = currentUser && msg.userId == currentUser.id
+                chats.innerHTML += `<li data-id="${msg.id}" class="${isOwn ? 'own' : 'other'}">
+                    <span>${msg.avater}</span>
+                    <span>${msg.username}</span>
+                    <div class="msg-body">
+                        <p>${msg.content}</p>
+                        ${isOwn ? `
+                            <div class="msg-actions">
+                                <button class="edit-btn" data-id="${msg.id}">Edit</button>
+                                <button class="delete-btn" data-id="${msg.id}">Delete</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </li>`
+            })
+        }
+
+        function sendMessage() {
+            if(!currentUser) return
+            let savedMessages = JSON.parse(localStorage.getItem("messages")) || []
+            let chatInput = document.getElementById("chat-input")
+            if(!chatInput.value) return
+            savedMessages.push({
+                id: savedMessages.length + 1,
+                content: chatInput.value,
+                userId: currentUser.id,
+                username: currentUser.username,
+                avater: currentUser.avater,
+                timestamp: new Date().toLocaleTimeString()
+            })
+            localStorage.setItem("messages", JSON.stringify(savedMessages))
+            chatInput.value = ""
+            renderMessages()
+        }
+
+        document.getElementById("chats").addEventListener("click", (e) => {
+            if(e.target.classList.contains("delete-btn")) {
+                let savedMessages = JSON.parse(localStorage.getItem("messages")) || []
+                let filtered = savedMessages.filter(msg => msg.id != e.target.dataset.id)
+                localStorage.setItem("messages", JSON.stringify(filtered))
+                renderMessages()
+            }
+            if(e.target.classList.contains("edit-btn")) {
+                let savedMessages = JSON.parse(localStorage.getItem("messages")) || []
+                let selected = savedMessages.find(msg => msg.id == e.target.dataset.id)
+                let newContent = prompt("Edit your message:", selected.content)
+                if(newContent) {
+                    savedMessages = savedMessages.map((msg) => {
+                        if(msg.id == e.target.dataset.id) {
+                            return {...msg, content: newContent}
+                        }
+                        return msg
+                    })
+                    localStorage.setItem("messages", JSON.stringify(savedMessages))
+                    renderMessages()
+                }
+            }
+        })
+
+        document.getElementById("user-list").addEventListener("click", (e) => {
+            let savedUsers = JSON.parse(localStorage.getItem("users")) || []
+            let selected = savedUsers.find(user => user.id == e.target.closest('li').dataset.id)
+            if(!selected) return
+            currentUser = selected
+            localStorage.setItem("currentUser", JSON.stringify(selected))
+            renderMessages()
+            showScreen(mainScreen)
+        })
+
+        newUserBtn.addEventListener("click", () => showScreen(registerScreen))
+        loginBtn.addEventListener("click", () => {
+            renderUsers()
+            showScreen(loginScreen)
+        })
+        registerBtn.addEventListener("click", registerUsers)
+        sendBtn.addEventListener("click", sendMessage)
+
+        showScreen(welcomeScreen)
+    </script>
+</body>
+</html>
